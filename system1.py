@@ -1,19 +1,35 @@
 import random
 import matplotlib.pyplot as plt
+import math
+import numpy as np
 from occurrence import occurrence
 
-episodes = 1000
+episodes = 500
+
 food = 50
 k = 0.01
 sigma = 0.1
-#behaviors = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 behaviors = [0,0,0,0]
 
+
+epsilon = 0.5
+A = 2
+N = [0 for i in range(A)]
+Q = [0 for i in range(A)]
+
+# graphs
 xpoints = []
 good = []
 bad = []
+historyN = []
 
 for i in range(episodes):
+    # epsilon-greedy 
+    if random.uniform(0,1) > epsilon:
+        a = np.argmax(Q)
+    else:
+        a = random.randint(0,A-1)
+
     '''
     L'idea è quella di creare un array di associazioni, in cui l'elemento i corrisponde al cibo a cui viene associato l'individuo i nell'iterazione corrente  
     '''
@@ -33,19 +49,17 @@ for i in range(episodes):
             #agent1 = max(0,agent1 + random.gauss(0,sigma))
 
             # se non ci sono scontri, non si apprende nulla quindi la nascita è casuale
-            behaviors.append(random.uniform(0,1)) 
+            behaviors.append(random.randint(0,1)) 
                 
         # se ci sono due o più occorrenze, allora si gestiscono i primi due in base alle regole e tutti gli altri muoiono con probabilità 50% perchè non si nutrono
         elif (occurrence(assoc,f) >= 2):
             index1 = assoc.index(f)
             assoc[index1] = -1
-            behavior1 = behaviors[index1] 
-            agent1 = 0 if random.uniform(0,1) < behavior1 else 1
+            agent1 = behaviors[index1] 
             
             index2 = assoc.index(f)
             assoc[index2] = -1
-            behavior2 = behaviors[index2]
-            agent2 = 0 if random.uniform(0,1) < behavior2 else 1
+            agent2 = behaviors[index2]
 
             # ripulisco le associazioni triple
             while (f in assoc):
@@ -56,14 +70,21 @@ for i in range(episodes):
             
             # entrambi sopravvivono ma non si riproducono
             if (agent1 == 0 and agent2 == 0):
-                pass
+                if a == 0:
+                    #behaviors.append(random.randint(0,1))
+                    #behaviors.append(random.randint(0,1))
+                    behaviors.append(0)
+                    behaviors.append(0)
+                #pass
 
             # agent1 si riproduce con probabilità 50%, agent2 muore con probabilità 50%
             elif (agent1 == 1 and agent2 == 0):
                 # agent1
                 if (random.uniform(0,1) > 0.5):
-                    #behaviors.append(behavior1 + k*(1-behavior1)) 
-                    behaviors.append(behavior1)
+                    if a == 1:
+                        assoc[index1] = -2
+                    else:
+                        behaviors.append(agent1)
 
                 # agent2
                 if (random.uniform(0,1) > 0.5):
@@ -77,8 +98,10 @@ for i in range(episodes):
 
                 # agent2
                 if (random.uniform(0,1) > 0.5):
-                    #behaviors.append(behavior2 + k*(1-behavior2)) 
-                    behaviors.append(behavior2)
+                    if a == 1:
+                        assoc[index2] = -2
+                    else:
+                        behaviors.append(agent2)
 
             # muoiono entrambi
             elif (agent1 == 1 and agent2 == 1):
@@ -96,19 +119,33 @@ for i in range(episodes):
 
     # conteggio del numero dei buoni
     total = len(behaviors)
-    counter = 0
+    goods = 0
     for n in range(len(behaviors)):
         if (behaviors[n] == 0):
-            counter += 1 
+            goods += 1 
 
     # Reinforcement Learning
-    
+    # le azioni sono {uccidi i cattivi, fai riprodurre i buoni}
+    # il reward è pari al rapporto fra buoni e totale normalizzato in (-1,+1)
+    R = 2*(goods/total - 0.5)
+    N[a] = N[a] + 1
+    Q[a] = Q[a] + (1/N[a])*(R - Q[a])
+
+    historyN.append(N.copy())
 
     xpoints.append(i)
-    good.append(counter)
-    bad.append(total-counter)
-          
-#plt.plot(xpoints,total)
-plt.plot(xpoints,good)
-plt.plot(xpoints,bad)
+    good.append(goods)
+    bad.append(total-goods)
+
+# plots
+plt.figure(1)
+plt.plot(xpoints,good, label="goods")
+plt.plot(xpoints,bad, label="bads")
+plt.legend(loc="upper left")
+
+plt.figure(2)
+plt.plot(np.transpose(historyN)[0], label="rewards goods")
+plt.plot(np.transpose(historyN)[1], label="kills bads")
+plt.legend(loc="upper left")
+
 plt.show()
