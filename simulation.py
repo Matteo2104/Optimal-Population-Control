@@ -4,12 +4,14 @@ import numpy as np
 from occurrence import occurrence
 from allzero import allzero
 
-episodes = 700
+episodes = 200
 
 food = 50
+P = 100
 behaviors = [0,1]
 
-epsilon = 0.2
+epsilon = 0.8
+delta = 0.9
 A = 4
 N = [0 for i in range(A)]
 Q = [0 for i in range(A)]
@@ -26,16 +28,18 @@ actions
 - 0 : nothing
 - 1 : reward goods
 - 2 : kill bads
-- 3 : mixed
+- 3 : prevents
 '''
 
 # epsilon-greedy 
-for e in range(episodes):    
-    #a = 0
+for e in range(episodes):  
+    #a = 0  
     if random.uniform(0,1) > epsilon:
         a = np.argmax(Q)
     else:
         a = random.randint(0,A-1)
+
+    behaviors = [random.randint(0,1) for i in range(P)]
 
     # associo gli individui ai cibi in modo casuale
     # potrebbe essere fatto computazionalmente meglio, ma per ora va bene così
@@ -67,7 +71,7 @@ for e in range(episodes):
         if (occurrence(assoc,f) == 0):
             continue
             
-        # se c'è una sola occorrenza, significa che l'individuo i può mangiare tutto il cibo per sè e quindi riprodursi con probabilità 100%
+        # se c'è una sola occorrenza, significa che l'individuo i può mangiare tutto il cibo per sè e quindi riprodursi 
         elif (occurrence(assoc,f) == 1):
             index1 = assoc.index(f)
             assoc[index1] = -1
@@ -87,68 +91,53 @@ for e in range(episodes):
             assoc[index2] = -1
             agent2 = behaviors[index2]
 
-            '''
-            # ripulisco le associazioni triple
-            while (f in assoc):
-                indexi = assoc.index(f)
-                assoc[indexi] = -1
-                if (random.uniform(0,1) < 0.5):
-                    assoc[indexi] = -2 # muore
-            '''
-
             # entrambi sopravvivono ma non si riproducono
             if (agent1 == 0 and agent2 == 0):
-                if a == 0:
+                if a == 0: # do nothing
                     pass
-                elif a == 1:
-                    if random.uniform(0,1) > 0.5:
-                        behaviors.append(0)
-                    if random.uniform(0,1) > 0.5:
-                        behaviors.append(0)
-                elif a == 2:
+                elif a == 1: # rewards goods
+                    behaviors.append(0)
+                    behaviors.append(0)
+                elif a == 2: # kills bads
                     pass
-                elif a == 3:
-                    if random.uniform(0,1) > 0.5:
-                        behaviors.append(0)
-                    if random.uniform(0,1) > 0.5:
-                        behaviors.append(0)
+                elif a == 3: # prevents
+                    pass
 
             # agent1 si riproduce con probabilità 50%, agent2 muore con probabilità 50%
             elif (agent1 == 1 and agent2 == 0):
-                # agent1
-                if (random.uniform(0,1) > 0.5):
-                    if a == 0:
-                        behaviors.append(agent1)
-                    elif a == 1:
-                        behaviors.append(agent1)
-                    elif a == 2:
-                        assoc[index1] = -2
-                    elif a == 3:
-                        if random.uniform(0,1):
-                            assoc[index1] = -2
-                        
-
                 # agent2
-                if (random.uniform(0,1) > 0.5):
+                if random.uniform(0,1) > 0.5:
                     assoc[index2] = -2
-
+                
+                # agent1
+                if a == 0: # do nothing
+                    if random.uniform(0,1) > 0.5:
+                        behaviors.append(agent1)
+                elif a == 1: # rewards goods
+                    if random.uniform(0,1) > 0.5:
+                        behaviors.append(agent1)
+                elif a == 2: # kills bads
+                    assoc[index1] = -2
+                elif a == 3: # prevents
+                    assoc[index2] = -1
+                        
             # agent1 muore con probabilità 50%, agent2 si riproduce con probabilità 50%
             elif (agent1 == 0 and agent2 == 1):
                 # agent1
-                if (random.uniform(0,1) > 0.5):
+                if random.uniform(0,1) > 0.5:
                     assoc[index1] = -2
 
                 # agent2
-                if (random.uniform(0,1) > 0.5):
-                    if a == 0:
+                if a == 0: # do nothing
+                    if random.uniform(0,1) > 0.5:
                         behaviors.append(agent2)
-                    elif a == 1:
+                elif a == 1: # rewards goods
+                    if random.uniform(0,1) > 0.5:
                         behaviors.append(agent2)
-                    elif a == 2:
-                        assoc[index2] = -2
-                    elif a == 3:
-                        if random.uniform(0,1):
-                            assoc[index2] = -2
+                elif a == 2: # kills bads
+                    assoc[index2] = -2
+                elif a == 3: # prevents
+                    assoc[index1] = -1
 
             # muoiono entrambi
             elif (agent1 == 1 and agent2 == 1):
@@ -177,6 +166,8 @@ for e in range(episodes):
     N[a] = N[a] + 1
     Q[a] = Q[a] + (1/N[a])*(R - Q[a])
 
+    epsilon = delta*epsilon
+
     historyN.append(N.copy())
 
     xpoints.append(e)
@@ -195,7 +186,7 @@ plt.figure(2)
 plt.plot(np.transpose(historyN)[0], label="do nothing", color="grey")
 plt.plot(np.transpose(historyN)[1], label="rewards goods", color="blue")
 plt.plot(np.transpose(historyN)[2], label="kills bads", color="red")
-plt.plot(np.transpose(historyN)[3], label="mixed", color="yellow")
+plt.plot(np.transpose(historyN)[3], label="prevents", color="yellow")
 plt.legend(loc="upper left")
 
 plt.show()

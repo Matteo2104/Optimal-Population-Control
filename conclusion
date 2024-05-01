@@ -1,0 +1,6 @@
+Se il sistema parte da uno stato iniziale con soli buoni, l'azione migliore risulta essere quella di non fare nulla
+
+Se il sistema parte da uno stato iniziale con soli cattivi, possono nascere solo altri cattivi quindi il reward è sempre -1 e non ha modo di apprendere come migliorarlo
+
+Se il sistema parte da uno stato iniziale misto, riesce ad apprendere solo nella fase in iniziale. In particolare, tutte le strategie, esclusa quella di non fare niente, risultano mitiganti per la crescita dei cattivi e quindi ne viene scelta una a caso fra le 3
+Il modo per risolvere è che a ogni episodio si resetta la situazione quindi il task diventa episodico.
