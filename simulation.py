@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from occurrence import occurrence
 from allzero import allzero
+from checkstate import checkstate
+from epsilongreedy import epsilongreedy
 
 episodes = 200
 
@@ -13,10 +15,13 @@ behaviors = [0,1]
 epsilon = 0.3
 delta = 0.9
 alpha = 0.5
+gamma = 0.9
 S = 10
 A = 4
-N = [0 for i in range(A)]
-Q = [0 for i in range(A)]
+#N = [0 for i in range(A)]
+#Q = [0 for i in range(A)]
+
+Q = np.zeros([S,A])
 
 # graphs
 xpoints = []
@@ -33,18 +38,16 @@ actions
 - 3 : prevents
 '''
 
-# epsilon-greedy 
 for e in range(episodes):  
     # resetto la distribuzione di individui
     behaviors = [random.randint(0,1) for i in range(P)]
 
+    s,_ = checkstate(behaviors)
+
     # avvio la simulazione
     while True:
         # decido l'azione in modo epsilon-greedy
-        if random.uniform(0,1) > epsilon:
-            a = np.argmax(Q)
-        else:
-            a = random.randint(0,A-1)
+        a = epsilongreedy(Q,A,epsilon)
         
         # associo gli individui ai cibi in modo casuale
         # potrebbe essere fatto computazionalmente meglio, ma per ora va bene così
@@ -158,47 +161,45 @@ for e in range(episodes):
         for d in reversed(dead):
             del behaviors[d]
 
-        # conteggio del numero dei buoni
-        total = len(behaviors)
-        goods = 0
-        for n in range(len(behaviors)):
-            if (behaviors[n] == 0):
-                goods += 1 
+        # a questo punto effettuo la transizione
+        sp,r = checkstate(behaviors)
 
-        # a questo punto effettuo la transizione, e prendo il reward
-        
-
-        # criterio d'arresto: se arrivo nello stato terminale, ovvero fra 0 e 0.1
-        if good/totals < 0.1:
-            R = 1
+        if sp == 0:
+            Q[sp,a] = 0
             break
-
-    # Reinforcement Learning
-    #N[a] = N[a] + 1
-    #Q[a] = Q[a] + (1/N[a])*(R - Q[a])
-    Q[a] = Q[a] + alpha*()
-
+        else:
+            ap = epsilongreedy(Q,A,epsilon)
+            
+            # SARSA update
+            Q[s,a] = Q[s,a] + alpha*(r + gamma*Q[sp,ap] - Q[s,a])
+            s = sp
+            a = ap
+    
     epsilon = delta*epsilon
 
-    historyN.append(N.copy())
+    
 
-    xpoints.append(e)
-    good.append(goods)
-    bad.append(total-goods)
-    totals.append(total)
 
+    #historyN.append(N.copy())
+
+    #xpoints.append(e)
+    #good.append(goods)
+    #bad.append(total-goods)
+    #totals.append(total)
+
+'''
 # plots
 plt.figure(1)
-plt.plot(xpoints, totals, label="total", color="black")
-plt.plot(xpoints, good, label="goods")
-plt.plot(xpoints, bad, label="bads")
+plt.plot(totals, label="total", color="black")
+plt.plot(good, label="goods")
+plt.plot(bad, label="bads")
 plt.legend(loc="upper left")
+'''
 
-plt.figure(2)
+plt.figure(1)
 plt.plot(np.transpose(historyN)[0], label="do nothing", color="grey")
 plt.plot(np.transpose(historyN)[1], label="rewards goods", color="blue")
 plt.plot(np.transpose(historyN)[2], label="kills bads", color="red")
 plt.plot(np.transpose(historyN)[3], label="prevents", color="yellow")
 plt.legend(loc="upper left")
-
 plt.show()
