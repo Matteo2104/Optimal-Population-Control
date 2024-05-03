@@ -1,0 +1,11 @@
+Problematiche:
+
+- Se utilizzo un modello markoviano a stati, il problema è che il controllo ottimo non ha sempre lo stessa dimensione: a volte ci impiega di più, a volte ci impiega di meno...
+- La matrice di transizione degli stati non è stazionaria poichè varia nel tempo
+
+La matrice di transizione degli stati è una matrice 10x10x4. Nella cella ijk c'è la probabilità di transire nello stato j stando nello stato i prendendo l'azione k. 
+
+Data una matrice di transizione degli stati, l'obiettivo è quello di trovare la politica ottima tramite policy iteration.
+
+Per ogni episodio faccio trascorrere una generazione
+Ad ogni generazione posso provare varie azioni, e ognuna darà una stima della funzione qualità
