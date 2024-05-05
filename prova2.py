@@ -6,26 +6,27 @@ from allzero import allzero
 from checkstate import checkstate
 from epsilongreedy import epsilongreedy
 
-episodes = 5e3
+episodes = 500
 
 food = 50
 P = 100
 
-epsilon = 0.2
-delta = 0.995
-alpha = 1
-gamma = 0.9
+epsilon = 0.5
+delta = 0.99
 
-S = 20
-A = 3
+A = 4
 
-Q = np.zeros([S,A])
+# graphs
+good = []
+bad = []
+total = []
 
 '''
 actions
 - 0 : do nothing
 - 1 : reward goods
-- 2 : kill bads (but sometimes also goods)
+- 2 : kill bads
+- 3 : prevents
 '''
 
 # resetto la distribuzione di individui
@@ -34,41 +35,26 @@ goods = [0 for i in range(rnd)]
 bads = [1 for i in range(rnd,P)]
 behaviors = goods + bads
 random.shuffle(behaviors)
+print(len(behaviors))
 
-history = []
-policy = []
-goodss = []
-badss = []
-foods = []
+a = 0
 
-for e in range(int(episodes)):  
-    print(f"episode {e}")
+print(f"initial state {len(goods)/len(behaviors)}")
 
-    s,_,_,_ = checkstate(behaviors)
+total.append(len(behaviors))
+good.append(len(goods))
+bad.append(len(behaviors) - len(goods))
 
-    # decido l'azione in modo epsilon-greedy
-    a = epsilongreedy(Q[s],A,epsilon)
+totals = len(behaviors)
+goods = len(goods)
 
-    if a == 0:
-        food -= 1
-    elif a == 1:
-        pass
-    elif a==2: 
-        food += 1
-
-    food = max(1,food)
-
-    #while True:
+for e in range(500):
+#while len(behaviors) - goods > 0:
     # associo gli individui ai cibi in modo casuale
     # potrebbe essere fatto computazionalmente meglio, ma per ora va bene così
     assoc = [-1 for b in range(len(behaviors))]
     availability = [2 for f in range(food)]
-
-    if len(availability) == 0:
-        full = 1
-    else: 
-        full = 0
-
+    full = 0
     for i in range(0,len(assoc)):
         if full:
             # muore con probabilità 50%
@@ -99,9 +85,15 @@ for e in range(int(episodes)):
             index1 = assoc.index(f)
             assoc[index1] = -1
             agent1 = behaviors[index1]
-            behaviors.append(agent1) 
-            
-        # se ci sono due o più occorrenze, allora si gestiscono i primi due in base alle regole e tutti gli altri muoiono con probabilità 50% perchè non si nutrono
+            if a == 0:
+                behaviors.append(agent1)
+            if a == 2:
+                if random.uniform(0,1) > 0.5:
+                    behaviors.append(agent1)
+                else:
+                    assoc[index1] = -2
+                
+        # se ci sono due o più occorrenze, allora si gestiscono in base alle regole
         elif (occurrence(assoc,f) >= 2):
             index1 = assoc.index(f)
             assoc[index1] = -1
@@ -113,32 +105,53 @@ for e in range(int(episodes)):
 
             # entrambi sopravvivono ma non si riproducono
             if (agent1 == 0 and agent2 == 0):
-                pass
+                if a == 0: # do nothing
+                    behaviors.append(0)
+                    behaviors.append(0)
+                elif a == 1: # rewards goods
+                    behaviors.append(0)
+                    #behaviors.append(0)
+                elif a == 2: # kills bads
+                    #assoc[index1] = -2
+                    pass
+                elif a == 3: # prevents
+                    pass
 
-            # agent1 si riproduce, agent2 muore con probabilità 50%
+            # agent1 si riproduce con probabilità 50%, agent2 muore con probabilità 50%
             elif (agent1 == 1 and agent2 == 0):
                 # agent2
-                if random.uniform(0,1) > 0.5:
-                    assoc[index2] = -2
+                assoc[index2] = -2
                 
                 # agent1
-                if random.uniform(0,1) > 0.5:
+                if a == 0: # do nothing
                     behaviors.append(agent1)
+                elif a == 1: # rewards goods
+                    behaviors.append(agent1)
+                elif a == 2: # kills bads
+                    assoc[index1] = -2
+                elif a == 3: # prevents
+                    assoc[index2] = -1
                         
-            # agent1 muore con probabilità 50%, agent2 si riproduce
+            # agent1 muore con probabilità 50%, agent2 si riproduce con probabilità 50%
             elif (agent1 == 0 and agent2 == 1):
                 # agent1
-                if random.uniform(0,1) > 0.5:
-                    assoc[index1] = -2
+                assoc[index1] = -2
 
                 # agent2
-                if random.uniform(0,1) > 0.5:
+                if a == 0: # do nothing
                     behaviors.append(agent2)
+                elif a == 1: # rewards goods
+                    behaviors.append(agent2)
+                elif a == 2: # kills bads
+                    assoc[index2] = -2
+                elif a == 3: # prevents
+                    assoc[index1] = -1
 
             # muoiono entrambi
             elif (agent1 == 1 and agent2 == 1):
                 assoc[index1] = -2
-                assoc[index2] = -2
+                
+                #behaviors.append(agent2)
 
     # rimuovo tutti gli individui morti
     dead = []
@@ -149,45 +162,21 @@ for e in range(int(episodes)):
     for d in reversed(dead):
         del behaviors[d]
 
-    # a questo punto effettuo la transizione di stato
-    sp,r,goods,bads = checkstate(behaviors)
-    ap = epsilongreedy(Q[s],A,epsilon)
-    
-    # SARSA update
-    Q[s,a] = Q[s,a] + alpha*(r + gamma*Q[sp,ap] - Q[s,a])
-    s = sp
-    a = ap  
-
-    goodss.append(goods)
-    badss.append(bads)
-    history.append(s)
-    policy.append(a)
-    foods.append(food)
-    
-    #epsilon = delta*epsilon
-
-    optimal = [np.argmax(Q[i,:]) for i in range(S)]
-    print(f"policy ottima {optimal}")
-
-print(len(history))
-
-figure, axis = plt.subplots(2, 2)
-
-axis[0,0].plot(history, color="black")
-axis[0,0].set_title("Visited states")
-
-axis[0,1].plot(goodss, color="blue")
-axis[0,1].plot(badss, color="red")
-axis[0,1].set_title("Individuals")
-
-axis[1,0].plot(policy, label="actions took", color="grey")
-axis[1,0].set_title("Policy")
-
-axis[1,1].plot(foods, label="food", color="green")
-axis[1,1].set_title("Food")
-
-plt.legend(loc="upper left")
-
+    totals = len(behaviors)
+    goods = 0
+    for i in range(totals):
+        if behaviors[i] == 0:
+            goods += 1
+        
+    total.append(totals)
+    good.append(goods)
+    bad.append(totals - goods)
+        
+plt.plot(total, color="black")
+plt.plot(bad, color="red")
+plt.plot(good, color="blue")
 plt.show()
+
+        
 
         
